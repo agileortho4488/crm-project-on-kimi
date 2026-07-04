@@ -258,7 +258,7 @@ export function Imports() {
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               <h3 className="text-sm font-semibold text-white">Import Complete</h3>
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-5 gap-3">
               <div className="text-center p-2 rounded-lg bg-white/[0.02]">
                 <p className="text-xl font-bold text-white">{parseResult.totalRows}</p>
                 <p className="text-[10px] text-zinc-500">Total Rows</p>
@@ -269,13 +269,27 @@ export function Imports() {
               </div>
               <div className="text-center p-2 rounded-lg bg-white/[0.02]">
                 <p className="text-xl font-bold text-emerald-400">{parseResult.created}</p>
-                <p className="text-[10px] text-zinc-500">Created</p>
+                <p className="text-[10px] text-zinc-500">New Contacts</p>
               </div>
               <div className="text-center p-2 rounded-lg bg-white/[0.02]">
-                <p className="text-xl font-bold text-amber-400">{parseResult.duplicates}</p>
-                <p className="text-[10px] text-zinc-500">Duplicates Skipped</p>
+                <p className="text-xl font-bold text-amber-400">{parseResult.merged}</p>
+                <p className="text-[10px] text-zinc-500">Merged <span className="text-zinc-600">(filled gaps)</span></p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                <p className="text-xl font-bold text-zinc-500">{parseResult.skipped}</p>
+                <p className="text-[10px] text-zinc-500">Skipped</p>
               </div>
             </div>
+            {parseResult.mergeLog && parseResult.mergeLog.length > 0 && (
+              <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                <p className="text-[10px] text-amber-400 font-medium mb-1.5">Fields filled from duplicate records:</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {parseResult.mergeLog.map((log: string, i: number) => (
+                    <p key={i} className="text-[10px] text-zinc-400">{log}</p>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
