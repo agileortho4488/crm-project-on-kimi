@@ -70,7 +70,7 @@ export const contacts = mysqlTable("contacts", {
   source: varchar("source", { length: 100 }), // where this contact was first found
   sourceUrl: text("source_url"),
   enrichmentData: json("enrichment_data"), // AI enriched data
-  tags: json("tags").default("[]"),
+  tags: json("tags"),
   isVerified: boolean("is_verified").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
@@ -88,7 +88,7 @@ export const leads = mysqlTable("leads", {
   title: varchar("title", { length: 255 }).notNull(),
   contactId: bigint("contact_id", { mode: "number", unsigned: true }),
   division: varchar("division", { length: 100 }),
-  productInterest: json("product_interest").default("[]"),
+  productInterest: json("product_interest"),
   stage: mysqlEnum("stage", ["new", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"]).notNull().default("new"),
   value: int("value").default(0),
   expectedCloseDate: timestamp("expected_close_date"),
@@ -141,7 +141,7 @@ export const products = mysqlTable("products", {
   category: varchar("category", { length: 100 }),
   description: text("description"),
   specifications: text("specifications"),
-  indications: json("indications").default("[]"),
+  indications: json("indications"),
   price: int("price").default(0),
   status: mysqlEnum("status", ["active", "discontinued", "coming_soon"]).default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
