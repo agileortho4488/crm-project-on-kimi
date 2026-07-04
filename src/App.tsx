@@ -9,8 +9,8 @@ import { Tasks } from '@/pages/Tasks';
 import { Products } from '@/pages/Products';
 import { Imports } from '@/pages/Imports';
 import { Scraping } from '@/pages/Scraping';
+import { Campaigns } from '@/pages/Campaigns';
 import { Analytics } from '@/pages/Analytics';
-import { trpc } from '@/providers/trpc';
 import type { AppPage } from '@/types';
 import { AlertTriangle, Server, RefreshCw } from 'lucide-react';
 
@@ -44,6 +44,7 @@ export default function App() {
       case 'products': return <Products />;
       case 'imports': return <Imports />;
       case 'scraping': return <Scraping />;
+      case 'campaigns': return <Campaigns />;
       case 'analytics': return <Analytics />;
       default: return <Dashboard onNavigate={setCurrentPage} />;
     }
@@ -125,7 +126,7 @@ function getPageTitle(page: AppPage): string {
   const titles: Record<AppPage, string> = {
     dashboard: 'Dashboard', contacts: 'Contacts', leads: 'Leads & Pipeline',
     activities: 'Activities', tasks: 'Tasks & Follow-ups', products: 'Product Catalog',
-    imports: 'Data Imports', scraping: 'Web Scraping', analytics: 'Analytics & Reports',
+    imports: 'Data Imports', scraping: 'Web Scraping', campaigns: 'Campaigns', analytics: 'Analytics & Reports',
   };
   return titles[page] || 'Dashboard';
 }

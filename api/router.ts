@@ -8,6 +8,7 @@ import { scraperRouter } from "./routers/scraper";
 import { importRouter } from "./routers/import";
 import { enrichmentRouter } from "./routers/enrichment";
 import { dashboardRouter } from "./routers/dashboard";
+import { campaignRouter } from "./routers/campaign";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -22,6 +23,7 @@ export const appRouter = createRouter({
   import: importRouter,
   enrichment: enrichmentRouter,
   dashboard: dashboardRouter,
+  campaign: campaignRouter,
 });
 
 export type AppRouter = typeof appRouter;

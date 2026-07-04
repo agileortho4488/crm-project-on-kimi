@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Target, CalendarDays, ClipboardList, Package, BarChart3, Upload, Globe, Stethoscope, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Target, CalendarDays, ClipboardList, Package, BarChart3, Upload, Globe, Stethoscope, ChevronLeft, ChevronRight, Megaphone } from 'lucide-react';
 import type { AppPage } from '@/types';
 
 interface SidebarProps {
@@ -18,6 +18,7 @@ const navItems: { id: AppPage; label: string; icon: React.ElementType }[] = [
   { id: 'products', label: 'Products', icon: Package },
   { id: 'imports', label: 'Data Imports', icon: Upload },
   { id: 'scraping', label: 'Web Scraping', icon: Globe },
+  { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
