@@ -7,7 +7,24 @@ import type { ReactNode } from "react";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry if it's a network error (backend not running)
+        if (error?.message?.includes('JSON') || error?.message?.includes('DOCTYPE')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
