@@ -2,9 +2,6 @@ import type { Context } from "hono";
 import { getDb } from "../queries/connection";
 import { dataSources, contacts } from "@db/schema";
 import { eq } from "drizzle-orm";
-// pdf-parse has ESM/CJS interop issues - use dynamic require pattern
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse");
 import * as XLSX from "xlsx";
 
 // Parse CSV text properly (handles commas in quotes)
@@ -38,47 +35,6 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(current);
   return result.map((v) => v.trim().replace(/^"|"$/g, '').trim());
-}
-
-// Extract data from PDF text
-function parsePDFText(text: string): Array<Record<string, string>> {
-  const records: Array<Record<string, string>> = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const mobileMatches = line.match(/(?:\+91[-\s]?)?(?:0)?([6-9]\d{9})/g);
-
-    if (mobileMatches && mobileMatches.length > 0) {
-      const phone = mobileMatches[0].replace(/\D/g, '');
-      const cleanPhone = phone.length > 10 ? '+' + phone : '+91' + phone;
-
-      let name = '';
-      for (let j = Math.max(0, i - 3); j < i; j++) {
-        const prevLine = lines[j];
-        if (/^(Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Prof\.?|Er\.?|Smt\.?|Shri\.?)\s+[A-Z]/i.test(prevLine) ||
-            /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(prevLine)) {
-          name = prevLine.replace(/\s+/g, ' ').trim();
-          if (name.length > 3 && name.length < 100) break;
-        }
-      }
-
-      if (!name) {
-        const phoneIdx = line.indexOf(mobileMatches[0]);
-        if (phoneIdx > 0) {
-          const beforePhone = line.substring(0, phoneIdx).trim().replace(/[,;:-]+$/, '').trim();
-          if (beforePhone.length > 3 && beforePhone.length < 100) name = beforePhone;
-        }
-      }
-
-      const emailMatch = line.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-
-      if (name) {
-        records.push({ name, phone: cleanPhone, email: emailMatch ? emailMatch[0] : '' });
-      }
-    }
-  }
-  return records;
 }
 
 function getVal(row: Record<string, unknown>, keys: string[]): string {
@@ -181,14 +137,23 @@ export async function handleFileUpload(c: Context) {
 
     if (!file) return c.json({ error: "No file uploaded" }, 400);
 
+    const ext = fileName.toLowerCase();
+
+    // Reject PDFs - client should send PDF text via tRPC parseAndImport instead
+    if (ext.endsWith(".pdf")) {
+      return c.json({
+        error: "PDF_UPLOAD_NOT_SUPPORTED",
+        message: "Please use the tRPC import endpoint for PDF files. The server cannot parse PDFs directly."
+      }, 400);
+    }
+
     const db = getDb();
     const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = fileName.toLowerCase();
 
     // Create import job
     const source = await db.insert(dataSources).values({
       sourceType: "upload",
-      sourceName: ext.endsWith(".pdf") ? "pdf" : ext.endsWith(".csv") ? "csv" : "excel",
+      sourceName: ext.endsWith(".csv") ? "csv" : "excel",
       fileName: fileName,
       status: "processing",
     });
@@ -197,11 +162,7 @@ export async function handleFileUpload(c: Context) {
 
     let records: Array<Record<string, string>> = [];
 
-    if (ext.endsWith(".pdf")) {
-      // Parse PDF
-      const pdfData = await pdfParse(buffer);
-      records = parsePDFText(pdfData.text);
-    } else if (ext.endsWith(".csv") || ext.endsWith(".txt")) {
+    if (ext.endsWith(".csv") || ext.endsWith(".txt")) {
       // Parse CSV
       const text = buffer.toString("utf-8");
       const rows = parseCSV(text);

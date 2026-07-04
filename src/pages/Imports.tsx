@@ -122,28 +122,21 @@ export function Imports() {
 
   const confirmImport = async () => {
     if (fileName.toLowerCase().endsWith('.pdf')) {
-      // Upload PDF via /api/upload endpoint
+      // PDF: read as text client-side, then send text to tRPC
       const input = document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = input?.files?.[0];
       if (!file) { setUploadError('No file selected'); return; }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', file.name);
-
       setIsUploading(true);
       setUploadError(null);
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Upload failed');
-        setParseResult(data);
-        setPreviewData(null);
-        setPdfPreview('');
-        refetch();
+        const text = await file.text();
+        if (!text || text.trim().length === 0) {
+          throw new Error('Could not extract text from PDF. The PDF may be image-based or password-protected.');
+        }
+        parseMutation.mutate({ fileName, fileType: 'pdf', pdfText: text });
       } catch (err: any) {
         setUploadError(err.message);
-      } finally {
         setIsUploading(false);
       }
       return;
