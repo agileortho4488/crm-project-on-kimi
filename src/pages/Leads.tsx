@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { trpc } from '@/providers/trpc';
-import { Target, Phone, Clock, User, X } from 'lucide-react';
+import { Target, Clock, User, X } from 'lucide-react';
 
 const stageCfg: Record<string, { label: string; color: string }> = {
   new: { label: 'New', color: '#3b82f6' },
@@ -53,7 +53,7 @@ export function Leads({ searchQuery }: LeadsProps) {
           </Tabs>
         </div>
         <div className="flex items-center gap-4">
-          <p className="text-sm font-bold text-amber-400">₹{(leads.filter(l => l.stage !== 'closed_won' && l.stage !== 'closed_lost').reduce((s, l) => s + l.value, 0) / 100000).toFixed(1)}L Pipeline</p>
+          <p className="text-sm font-bold text-amber-400">₹{(leads.filter(l => l.stage !== 'closed_won' && l.stage !== 'closed_lost').reduce((s, l) => s + (l.value || 0), 0) / 100000).toFixed(1)}L Pipeline</p>
           <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-semibold" onClick={() => setShowAdd(true)}>Add Lead</Button>
         </div>
       </div>
@@ -80,8 +80,8 @@ export function Leads({ searchQuery }: LeadsProps) {
                           <p className="text-xs font-medium text-zinc-200 line-clamp-2">{lead.title}</p>
                           <span className="flex items-center gap-1 text-[10px] text-zinc-500 mt-2"><User className="w-3 h-3" /> {lead.contactId || 'No contact'}</span>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs font-bold text-amber-400">₹{(lead.value / 100000).toFixed(1)}L</span>
-                            <Badge variant="outline" className={`text-[9px] ${priorityColors[lead.priority]}`}>{lead.priority}</Badge>
+                            <span className="text-xs font-bold text-amber-400">₹{((lead.value || 0) / 100000).toFixed(1)}L</span>
+                            <Badge variant="outline" className={`text-[9px] ${priorityColors[lead.priority || 'medium']}`}>{lead.priority || 'medium'}</Badge>
                           </div>
                         </CardContent>
                       </Card>
@@ -96,7 +96,7 @@ export function Leads({ searchQuery }: LeadsProps) {
         <ScrollArea className="flex-1">
           <div className="space-y-2 pr-2">
             {leads.map((lead) => {
-              const cfg = stageCfg[lead.stage];
+              const cfg = stageCfg[lead.stage || 'new'];
               return (
                 <Card key={lead.id} className="bg-[#111118] border-white/5 hover:border-amber-500/30 cursor-pointer transition-all" onClick={() => setSelectedLead(lead.id)}>
                   <CardContent className="p-4">
@@ -112,8 +112,8 @@ export function Leads({ searchQuery }: LeadsProps) {
                         </div>
                       </div>
                       <div className="text-right ml-4">
-                        <p className="text-sm font-bold text-amber-400">₹{(lead.value / 100000).toFixed(1)}L</p>
-                        <Badge variant="outline" className={`text-[9px] mt-1 ${priorityColors[lead.priority]}`}>{lead.priority}</Badge>
+                        <p className="text-sm font-bold text-amber-400">₹{((lead.value || 0) / 100000).toFixed(1)}L</p>
+                        <Badge variant="outline" className={`text-[9px] mt-1 ${priorityColors[lead.priority || 'medium']}`}>{lead.priority || 'medium'}</Badge>
                       </div>
                     </div>
                   </CardContent>
@@ -129,17 +129,17 @@ export function Leads({ searchQuery }: LeadsProps) {
           <div className="p-6">
             <div className="flex items-start justify-between mb-6">
               <div><h3 className="text-lg font-semibold text-white">{leadDetail.title}</h3>
-                <Badge variant="outline" className="text-[10px] mt-1" style={{ color: stageCfg[leadDetail.stage].color, borderColor: `${stageCfg[leadDetail.stage].color}40`, backgroundColor: `${stageCfg[leadDetail.stage].color}10` }}>{stageCfg[leadDetail.stage].label}</Badge>
+                <Badge variant="outline" className="text-[10px] mt-1" style={{ color: stageCfg[leadDetail.stage || 'new'].color, borderColor: `${stageCfg[leadDetail.stage || 'new'].color}40`, backgroundColor: `${stageCfg[leadDetail.stage || 'new'].color}10` }}>{stageCfg[leadDetail.stage || 'new'].label}</Badge>
               </div>
               <Button variant="ghost" size="sm" className="text-zinc-500" onClick={() => setSelectedLead(null)}><X className="w-4 h-4" /></Button>
             </div>
             <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 mb-4">
               <p className="text-xs text-zinc-500 mb-2">Deal Value</p>
-              <p className="text-2xl font-bold text-amber-400">₹{(leadDetail.value / 100000).toFixed(1)}L</p>
+              <p className="text-2xl font-bold text-amber-400">₹{((leadDetail.value || 0) / 100000).toFixed(1)}L</p>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="p-3 rounded-lg bg-white/[0.02]"><p className="text-[10px] text-zinc-500">Division</p><p className="text-sm text-zinc-200">{leadDetail.division || 'N/A'}</p></div>
-              <div className="p-3 rounded-lg bg-white/[0.02]"><p className="text-[10px] text-zinc-500">Priority</p><p className="text-sm text-zinc-200 capitalize">{leadDetail.priority}</p></div>
+              <div className="p-3 rounded-lg bg-white/[0.02]"><p className="text-[10px] text-zinc-500">Priority</p><p className="text-sm text-zinc-200 capitalize">{leadDetail.priority || 'medium'}</p></div>
               <div className="p-3 rounded-lg bg-white/[0.02]"><p className="text-[10px] text-zinc-500">Assigned To</p><p className="text-sm text-zinc-200">{leadDetail.assignedTo || 'Unassigned'}</p></div>
               <div className="p-3 rounded-lg bg-white/[0.02]"><p className="text-[10px] text-zinc-500">Expected Close</p><p className="text-sm text-zinc-200">{leadDetail.expectedCloseDate ? new Date(leadDetail.expectedCloseDate).toLocaleDateString() : 'N/A'}</p></div>
             </div>

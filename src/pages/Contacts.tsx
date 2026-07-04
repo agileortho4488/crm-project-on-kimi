@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { trpc } from '@/providers/trpc';
 import { districts, divisionNames } from '@/types';
-import { Phone, Mail, MapPin, Stethoscope, Building2, Filter, ChevronRight, Clock, Tag, MessageCircle, X, Plus } from 'lucide-react';
+import { Phone, Mail, MapPin, Stethoscope, Building2, ChevronRight, Tag, MessageCircle, X, Plus } from 'lucide-react';
 
 interface ContactsProps { searchQuery: string; }
 
@@ -121,13 +121,16 @@ export function Contacts({ searchQuery }: ContactsProps) {
                   <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs flex-1"><MessageCircle className="w-3 h-3 mr-1" /> WhatsApp</Button>
                 </div>
 
-                {detailContact.tags && (detailContact.tags as string[]).length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-2">
-                    {(detailContact.tags as string[]).map((tag: string) => (
-                      <Badge key={tag} variant="outline" className="text-[9px] bg-amber-500/5 text-amber-400 border-amber-500/20">{tag}</Badge>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const tags = detailContact.tags as string[] | null;
+                  return tags && tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {tags.map((tag: string) => (
+                        <Badge key={tag} variant="outline" className="text-[9px] bg-amber-500/5 text-amber-400 border-amber-500/20">{tag}</Badge>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 mt-2" onClick={() => detailContact.id && deleteMutation.mutate({ id: detailContact.id })}>Delete Contact</Button>
               </div>

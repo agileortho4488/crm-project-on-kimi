@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { trpc } from '@/providers/trpc';
 import { Upload, FileSpreadsheet, Database, CheckCircle2, AlertCircle, Loader2, X, FileUp } from 'lucide-react';
 import * as XLSX from 'xlsx';

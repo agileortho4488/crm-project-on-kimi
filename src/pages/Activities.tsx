@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { trpc } from '@/providers/trpc';
 import { Phone, MapPin, CalendarDays, Mail, MessageCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 

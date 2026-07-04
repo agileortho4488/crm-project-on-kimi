@@ -41,8 +41,6 @@ export function Tasks() {
     completed: tasks.filter((t) => t.status === 'completed').length,
     overdue: tasks.filter((t) => t.status === 'overdue').length,
   };
-  const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-100px)]">
       <div className="grid grid-cols-5 gap-3">
@@ -77,7 +75,7 @@ export function Tasks() {
                       <div className="flex items-center gap-2">
                         <p className={`text-sm font-medium ${isDone ? 'text-zinc-500 line-through' : 'text-white'}`}>{task.title}</p>
                         <Badge variant="outline" className="text-[9px]" style={{ color: cfg.color, borderColor: `${cfg.color}40`, backgroundColor: `${cfg.color}10` }}><StatusIcon className="w-2.5 h-2.5 mr-1" />{cfg.label}</Badge>
-                        <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority]}`}>{task.priority}</Badge>
+                        <Badge variant="outline" className={`text-[9px] ${priorityColors[task.priority || 'medium']}`}>{task.priority || 'medium'}</Badge>
                       </div>
                       <p className="text-xs text-zinc-500 mt-1">{task.description}</p>
                       <div className="flex items-center gap-4 mt-2">

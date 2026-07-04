@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/providers/trpc';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, Target, Activity, Users } from 'lucide-react';
 
 const divColors: Record<string, string> = {
@@ -66,7 +66,7 @@ export function Analytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={stats.divisions} cx="50%" cy="50%" outerRadius={100} dataKey="count" nameKey="division" label={({ division, percent }: any) => `${(percent * 100).toFixed(0)}%`}>
+                <Pie data={stats.divisions} cx="50%" cy="50%" outerRadius={100} dataKey="count" nameKey="division" label={({ percent }: any) => `${(percent * 100).toFixed(0)}%`}>
                   {stats.divisions.map((d: any, i: number) => <Cell key={i} fill={divColors[d.division] || '#52525b'} />)}
                 </Pie>
                 <Tooltip contentStyle={{ backgroundColor: '#1a1a24', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
