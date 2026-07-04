@@ -44,7 +44,7 @@ export const activityRouter = createRouter({
       const data: any = { ...input };
       if (input.followUpDate) data.followUpDate = new Date(input.followUpDate);
       const result = await db.insert(activities).values(data);
-      return { id: Number((result as any).insertId), ...input };
+      return { id: Number((result as any)[0].insertId), ...input };
     }),
 
   delete: publicQuery

@@ -138,7 +138,7 @@ export const campaignRouter = createRouter({
           outcome: "message_sent",
           createdBy: "campaign_system",
         });
-        results.push({ contactId, activityId: Number((activity as any).insertId) });
+        results.push({ contactId, activityId: Number((activity as any)[0].insertId) });
       }
       
       // Update contact tags

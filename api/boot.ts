@@ -5,10 +5,17 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
+import { handleFileUpload } from "./lib/upload";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+
+// File upload endpoint for PDF/Excel/CSV
+app.post("/api/upload", async (c) => {
+  return handleFileUpload(c);
+});
+
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",

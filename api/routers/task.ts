@@ -51,7 +51,7 @@ export const taskRouter = createRouter({
         data.dueDate = new Date(input.dueDate);
       }
       const result = await db.insert(tasks).values(data);
-      return { id: Number((result as any).insertId), ...input };
+      return { id: Number((result as any)[0].insertId), ...input };
     }),
 
   update: publicQuery

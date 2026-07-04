@@ -83,7 +83,7 @@ export const contactRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       const result = await db.insert(contacts).values(input);
-      const id = Number((result as any).insertId);
+      const id = Number((result as any)[0].insertId);
       
       // Log activity
       await db.insert(activities).values({
@@ -161,7 +161,7 @@ export const contactRouter = createRouter({
       for (const record of input) {
         try {
           const result = await db.insert(contacts).values(record);
-          results.push({ id: Number((result as any).insertId), ...record, status: "created" });
+          results.push({ id: Number((result as any)[0].insertId), ...record, status: "created" });
         } catch (e) {
           results.push({ ...record, status: "error", error: (e as Error).message });
         }
