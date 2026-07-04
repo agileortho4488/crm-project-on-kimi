@@ -41,7 +41,7 @@ export const productRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       const result = await db.insert(products).values(input);
-      return { id: Number(result[0].insertId), ...input };
+      return { id: Number((result as any).insertId), ...input };
     }),
 
   delete: publicQuery

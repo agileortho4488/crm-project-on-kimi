@@ -63,7 +63,7 @@ export const leadRouter = createRouter({
         data.expectedCloseDate = new Date(input.expectedCloseDate);
       }
       const result = await db.insert(leads).values(data);
-      return { id: Number(result[0].insertId), ...input };
+      return { id: Number((result as any).insertId), ...input };
     }),
 
   update: publicQuery

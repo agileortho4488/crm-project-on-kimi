@@ -27,7 +27,7 @@ export const scraperRouter = createRouter({
         startedAt: new Date(),
       });
       
-      const jobId = Number(result[0].insertId);
+      const jobId = Number((result as any).insertId);
       
       // Start background scraping (simulated for now - in production this would run async)
       // For demo, we'll add sample scraped data

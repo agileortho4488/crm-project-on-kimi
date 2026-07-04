@@ -15,7 +15,7 @@ export const importRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       const result = await db.insert(dataSources).values(input);
-      return { id: Number(result[0].insertId) };
+      return { id: Number((result as any).insertId) };
     }),
 
   processData: publicQuery
@@ -109,7 +109,7 @@ export const importRouter = createRouter({
         rawDataCount: input.rows.length,
         status: "processing",
       });
-      const sourceId = Number(source[0].insertId);
+      const sourceId = Number((source as any).insertId);
       
       const mapping: Record<string, string> = input.columnMapping || {};
       const getCol = (mKey: string, defaults: string[]): string[] => {
