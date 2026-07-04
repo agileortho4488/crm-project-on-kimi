@@ -1,12 +1,27 @@
 import { createRouter, publicQuery } from "./middleware";
+import { contactRouter } from "./routers/contact";
+import { leadRouter } from "./routers/lead";
+import { activityRouter } from "./routers/activity";
+import { taskRouter } from "./routers/task";
+import { productRouter } from "./routers/product";
+import { scraperRouter } from "./routers/scraper";
+import { importRouter } from "./routers/import";
+import { enrichmentRouter } from "./routers/enrichment";
+import { dashboardRouter } from "./routers/dashboard";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
-
-  // TODO: add feature routers here, e.g.
-  // todo: createRouter({
-  //   list: publicQuery.query(() => findTodos()),
-  // }),
+  
+  // Master CRM routers
+  contact: contactRouter,
+  lead: leadRouter,
+  activity: activityRouter,
+  task: taskRouter,
+  product: productRouter,
+  scraper: scraperRouter,
+  import: importRouter,
+  enrichment: enrichmentRouter,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;
