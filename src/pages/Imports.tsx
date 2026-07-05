@@ -3,9 +3,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import { Progress } from '@/components/ui/progress';
 import { trpc } from '@/providers/trpc';
-import { Upload, FileSpreadsheet, FileText, Database, CheckCircle2, AlertCircle, Loader2, X, FileUp } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, Database, CheckCircle2, AlertCircle, Loader2, X, FileUp, RefreshCw } from 'lucide-react';
 
 // Proper CSV parser that handles commas inside quotes
 function parseCSV(text: string): Record<string, unknown>[] {
@@ -43,21 +43,54 @@ interface PreviewRow {
   hospital: string;
 }
 
+interface ProcessingState {
+  fileName: string;
+  stage: 'uploading' | 'parsing' | 'merging' | 'completed' | 'error';
+  message: string;
+  progress: number;
+  totalRows: number;
+  processed: number;
+}
+
 export function Imports() {
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<any>(null);
   const [previewData, setPreviewData] = useState<PreviewRow[] | null>(null);
   const [fileName, setFileName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [pdfPreview, setPdfPreview] = useState<string>('');
+  const [processing, setProcessing] = useState<ProcessingState | null>(null);
 
-  const { data: jobs, refetch } = trpc.import.jobs.useQuery();
+  // Poll jobs every 3 seconds to show real-time status
+  const { data: jobs, refetch } = trpc.import.jobs.useQuery(undefined, {
+    refetchInterval: processing?.stage === 'parsing' || processing?.stage === 'merging' ? 3000 : false,
+  });
+
   const parseMutation = trpc.import.parseAndImport.useMutation({
-    onMutate: () => { setIsUploading(true); setUploadError(null); },
-    onSuccess: (data) => { setParseResult(data); setIsUploading(false); setPreviewData(null); refetch(); },
-    onError: (err) => { setUploadError(err.message || 'Import failed'); setIsUploading(false); },
+    onMutate: () => {
+      setProcessing({ fileName, stage: 'parsing', message: 'Parsing data...', progress: 10, totalRows: 0, processed: 0 });
+      setUploadError(null);
+    },
+    onSuccess: (data) => {
+      setParseResult(data);
+      setProcessing({
+        fileName,
+        stage: 'completed',
+        message: `Done! Created ${data.created} new, merged ${data.merged}`,
+        progress: 100,
+        totalRows: data.totalRows || 0,
+        processed: data.created + data.merged,
+      });
+      setPreviewData(null);
+      setSelectedFile(null);
+      refetch();
+    },
+    onError: (err) => {
+      setUploadError(err.message || 'Import failed');
+      setProcessing({ fileName, stage: 'error', message: err.message, progress: 0, totalRows: 0, processed: 0 });
+    },
   });
 
   const processFile = useCallback((file: File) => {
@@ -66,40 +99,27 @@ export function Imports() {
     setPreviewData(null);
     setPdfPreview('');
     setFileName(file.name);
+    setSelectedFile(file);
+    setProcessing(null);
 
-    const isPDF = file.name.toLowerCase().endsWith('.pdf');
+    const lower = file.name.toLowerCase();
+    const isPDF = lower.endsWith('.pdf');
+    const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls');
 
-    if (isPDF) {
-      // For PDF: read as text to show preview, then upload via /api/upload
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          // PDF preview - just show first 2000 chars as raw text indicator
-          setPdfPreview(`PDF file selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)\nThe server will extract names and phone numbers from the PDF.`);
-          setPreviewData([]); // empty preview for PDF - server handles parsing
-          setParsedRows([]);
-        } catch (err: any) {
-          setUploadError('PDF read error: ' + err.message);
-        }
-      };
-      reader.readAsText(file);
+    if (isPDF || isExcel) {
+      const typeLabel = isPDF ? 'PDF' : 'Excel';
+      setPdfPreview(`${typeLabel} file selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)\nClick Confirm Import to process.`);
+      setPreviewData([]);
+      setParsedRows([]);
       return;
     }
 
-    // For CSV/Excel
+    // For CSV/TXT: parse in browser for preview
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        let rows: Record<string, unknown>[] = [];
-        if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')) {
-          const content = e.target?.result as string;
-          rows = parseCSV(content);
-        } else {
-          // Excel - we need to send to server since we can't parse xlsx in browser easily
-          // For now, send raw and let server handle
-          setUploadError('Excel files: please use CSV export for now, or the file will be sent to server for parsing');
-          return;
-        }
+        const content = e.target?.result as string;
+        const rows = parseCSV(content);
         if (rows.length === 0) { setUploadError('No data found. Check headers.'); return; }
         setParsedRows(rows);
         const preview: PreviewRow[] = rows.slice(0, 10).map((row: any) => ({
@@ -113,22 +133,17 @@ export function Imports() {
         setPreviewData(preview);
       } catch (err: any) { setUploadError('Parse error: ' + err.message); }
     };
-    if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')) {
-      reader.readAsText(file);
-    } else {
-      reader.readAsArrayBuffer(file);
-    }
+    reader.readAsText(file);
   }, []);
 
   const confirmImport = async () => {
-    if (fileName.toLowerCase().endsWith('.pdf')) {
-      // PDF: read as text client-side, then send text to tRPC
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-      const file = input?.files?.[0];
-      if (!file) { setUploadError('No file selected'); return; }
+    const lower = fileName.toLowerCase();
+    const file = selectedFile;
 
-      setIsUploading(true);
-      setUploadError(null);
+    if (!file) { setUploadError('No file selected'); return; }
+
+    if (lower.endsWith('.pdf')) {
+      setProcessing({ fileName, stage: 'parsing', message: 'Reading PDF text...', progress: 15, totalRows: 0, processed: 0 });
       try {
         const text = await file.text();
         if (!text || text.trim().length === 0) {
@@ -137,7 +152,41 @@ export function Imports() {
         parseMutation.mutate({ fileName, fileType: 'pdf', pdfText: text });
       } catch (err: any) {
         setUploadError(err.message);
-        setIsUploading(false);
+        setProcessing({ fileName, stage: 'error', message: err.message, progress: 0, totalRows: 0, processed: 0 });
+      }
+      return;
+    }
+
+    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+      setProcessing({ fileName, stage: 'uploading', message: 'Uploading Excel file...', progress: 20, totalRows: 0, processed: 0 });
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('fileName', file.name);
+
+        setProcessing({ fileName, stage: 'parsing', message: 'Server parsing Excel...', progress: 40, totalRows: 0, processed: 0 });
+
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || data.message || 'Upload failed');
+
+        setProcessing({
+          fileName,
+          stage: 'completed',
+          message: `Done! Created ${data.created} new, merged ${data.merged}`,
+          progress: 100,
+          totalRows: data.totalRows || 0,
+          processed: data.created + data.merged,
+        });
+        setParseResult(data);
+        setPreviewData(null);
+        setPdfPreview('');
+        setSelectedFile(null);
+        refetch();
+      } catch (err: any) {
+        setUploadError(err.message);
+        setProcessing({ fileName, stage: 'error', message: err.message, progress: 0, totalRows: 0, processed: 0 });
       }
       return;
     }
@@ -147,6 +196,17 @@ export function Imports() {
     parseMutation.mutate({ fileName, fileType: 'csv', rows: parsedRows });
   };
 
+  const cancelPreview = () => {
+    setPreviewData(null);
+    setParsedRows([]);
+    setFileName('');
+    setSelectedFile(null);
+    setUploadError(null);
+    setPdfPreview('');
+    setParseResult(null);
+    setProcessing(null);
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -154,19 +214,12 @@ export function Imports() {
     if (file) processFile(file);
   }, [processFile]);
 
-  const cancelPreview = () => {
-    setPreviewData(null);
-    setParsedRows([]);
-    setFileName('');
-    setUploadError(null);
-    setPdfPreview('');
-    setParseResult(null);
-  };
+  const isProcessing = processing?.stage === 'uploading' || processing?.stage === 'parsing' || processing?.stage === 'merging';
 
   return (
     <div className="space-y-6">
       {/* Upload Area */}
-      <Card className={`bg-[#111118] border-2 border-dashed transition-all ${isDragging ? 'border-amber-500/50 bg-amber-500/5' : previewData || pdfPreview ? 'border-blue-500/30' : 'border-white/10'}`}
+      <Card className={`bg-[#111118] border-2 border-dashed transition-all ${isDragging ? 'border-amber-500/50 bg-amber-500/5' : previewData !== null || pdfPreview ? 'border-blue-500/30' : 'border-white/10'}`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}>
@@ -178,7 +231,7 @@ export function Imports() {
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">{fileName}</h3>
               <p className="text-sm text-zinc-400 mb-4">
-                {pdfPreview ? 'PDF ready for processing' : `${parsedRows.length} rows parsed · ${previewData?.length || 0} shown`}
+                {pdfPreview ? `${selectedFile ? (selectedFile.size / 1024).toFixed(1) : 0} KB file ready` : `${parsedRows.length} rows parsed · ${previewData?.length || 0} shown`}
               </p>
               {pdfPreview && (
                 <div className="text-left p-3 rounded-lg bg-white/[0.02] mb-4 max-w-md mx-auto">
@@ -186,11 +239,11 @@ export function Imports() {
                 </div>
               )}
               <div className="flex justify-center gap-3">
-                <Button className="bg-amber-500 hover:bg-amber-600 text-black font-semibold" onClick={confirmImport} disabled={isUploading}>
-                  {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                  {isUploading ? 'Importing...' : 'Confirm Import'}
+                <Button className="bg-amber-500 hover:bg-amber-600 text-black font-semibold" onClick={confirmImport} disabled={isProcessing}>
+                  {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  {isProcessing ? 'Processing...' : 'Confirm Import'}
                 </Button>
-                <Button variant="outline" className="border-white/10 text-zinc-400" onClick={cancelPreview} disabled={isUploading}>
+                <Button variant="outline" className="border-white/10 text-zinc-400" onClick={cancelPreview} disabled={isProcessing}>
                   <X className="w-4 h-4 mr-2" /> Cancel
                 </Button>
               </div>
@@ -222,6 +275,28 @@ export function Imports() {
           )}
         </CardContent>
       </Card>
+
+      {/* LIVE PROCESSING STATUS */}
+      {processing && (
+        <Card className={`border ${processing.stage === 'completed' ? 'border-emerald-500/30 bg-emerald-500/5' : processing.stage === 'error' ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              {processing.stage === 'completed' ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> :
+               processing.stage === 'error' ? <AlertCircle className="w-5 h-5 text-red-400" /> :
+               <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />}
+              <div>
+                <h3 className="text-sm font-semibold text-white">{processing.fileName}</h3>
+                <p className="text-xs text-zinc-400">{processing.message}</p>
+              </div>
+            </div>
+            <Progress value={processing.progress} className="h-2 bg-white/5" />
+            <div className="flex justify-between mt-2">
+              <span className="text-[10px] text-zinc-500">{processing.stage}</span>
+              <span className="text-[10px] text-zinc-500">{processing.progress}%</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Preview Table */}
       {previewData && previewData.length > 0 && (
@@ -269,10 +344,15 @@ export function Imports() {
         </Card>
       )}
 
-      {/* Import History */}
+      {/* Import History - Live updating */}
       <Card className="bg-[#111118] border-white/5">
         <CardContent className="p-4">
-          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2"><Database className="w-4 h-4 text-blue-400" /> Import History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Database className="w-4 h-4 text-blue-400" /> Import History</h3>
+            <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-7 text-xs text-zinc-400">
+              <RefreshCw className="w-3 h-3 mr-1" /> Refresh
+            </Button>
+          </div>
           <ScrollArea className="h-64">
             <div className="space-y-2">
               {(jobs?.items || []).length === 0 && <p className="text-center text-sm text-zinc-600 py-8">No imports yet</p>}
@@ -282,7 +362,12 @@ export function Imports() {
                     {job.status === 'completed' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : job.status === 'failed' ? <AlertCircle className="w-4 h-4 text-red-400" /> : <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />}
                     <div>
                       <p className="text-xs font-medium text-zinc-300">{job.fileName || job.sourceName}</p>
-                      <p className="text-[10px] text-zinc-500">{job.sourceType} · {new Date(job.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-zinc-500">{job.sourceType} · {job.rawDataCount ? `${job.rawDataCount} rows · ` : ''}{new Date(job.createdAt).toLocaleDateString()}</p>
+                      {job.status === 'processing' && (
+                        <div className="mt-1">
+                          <Progress value={job.processedCount && job.rawDataCount ? (job.processedCount / job.rawDataCount) * 100 : 30} className="h-1 w-24 bg-white/5" />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className={`text-[9px] ${job.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : job.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{job.status}</Badge>

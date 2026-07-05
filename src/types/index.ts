@@ -86,7 +86,7 @@ export interface Product {
   createdAt: Date;
 }
 
-export type AppPage = 'dashboard' | 'contacts' | 'leads' | 'activities' | 'tasks' | 'products' | 'imports' | 'scraping' | 'campaigns' | 'analytics';
+export type AppPage = 'dashboard' | 'contacts' | 'leads' | 'activities' | 'tasks' | 'products' | 'imports' | 'dataquality' | 'enrichmenthub' | 'scraping' | 'campaigns' | 'analytics' | 'maps' | 'adminpanel';
 
 export const districts = [
   'Adilabad', 'Bhadradri Kothagudem', 'Hyderabad', 'Jagtial', 'Jangaon',

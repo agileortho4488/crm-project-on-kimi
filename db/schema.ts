@@ -63,6 +63,7 @@ export const contacts = mysqlTable("contacts", {
   address: text("address"),
   district: varchar("district", { length: 100 }),
   division: varchar("division", { length: 100 }),
+  qualityScore: int("quality_score").default(0), // 0-100 data quality score
   status: mysqlEnum("status", ["active", "inactive", "prospect", "blacklisted"]).notNull().default("active"),
   notes: text("notes"),
   lastContact: timestamp("last_contact"),
@@ -160,4 +161,21 @@ export const scrapingJobs = mysqlTable("scraping_jobs", {
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Users / Team Members - login access control
+export const users = mysqlTable("users", {
+  id: serial("id").primaryKey(),
+  username: varchar("username", { length: 50 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  role: mysqlEnum("role", ["admin", "manager", "sales", "marketing", "surgical_assistant", "viewer"]).notNull().default("viewer"),
+  division: varchar("division", { length: 100 }),
+  district: varchar("district", { length: 100 }),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

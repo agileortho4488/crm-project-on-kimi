@@ -3,6 +3,23 @@ import { createRouter, publicQuery } from "../middleware";
 import { getDb } from "../queries/connection";
 import { dataSources, contacts } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
+import { autoEnrichContacts } from "./enrichment";
+
+// Extract insertId from various Drizzle result formats
+function extractInsertId(result: any): number | null {
+  try {
+    if (Array.isArray(result) && result[0]?.insertId) {
+      return Number(result[0].insertId);
+    }
+    if (result?.insertId) {
+      return Number(result.insertId);
+    }
+    if (Array.isArray(result) && Array.isArray(result[0]) && result[0][0]?.insertId) {
+      return Number(result[0][0].insertId);
+    }
+  } catch (e) {}
+  return null;
+}
 
 // Extract structured data from PDF text
 function parsePDFText(text: string): Record<string, unknown>[] {
@@ -73,7 +90,8 @@ export const importRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       const result = await db.insert(dataSources).values(input);
-      return { id: Number((result as any)[0].insertId) };
+      const id = extractInsertId(result);
+      return { id: id || 0 };
     }),
 
   parseAndImport: publicQuery
@@ -94,8 +112,8 @@ export const importRouter = createRouter({
         rawDataCount: input.rows?.length || 0,
         status: "processing",
       });
-      const sourceId = Number((source as any)[0].insertId);
-      if (isNaN(sourceId)) throw new Error("Failed to create import job - invalid source ID");
+      const sourceId = extractInsertId(source);
+      if (!sourceId) throw new Error("Failed to create import job - could not extract ID from DB result");
 
       let records: Record<string, string>[] = [];
 
@@ -233,6 +251,9 @@ export const importRouter = createRouter({
       await db.update(dataSources)
         .set({ status: "completed", processedCount: created + merged })
         .where(eq(dataSources.id, sourceId));
+
+      // Auto-enrich newly imported contacts (fire and forget)
+      autoEnrichContacts(200).catch(() => {});
 
       return { sourceId, totalRows: input.rows?.length || 0, parsedRecords: records.length, created, merged, skipped, mergeLog: mergeLog.slice(0, 20) };
     }),

@@ -42,3 +42,5 @@ coverage/
 .env
 dist/
 *.zip
+api/boot.js
+dist/boot.js
