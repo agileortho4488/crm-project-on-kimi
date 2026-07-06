@@ -70,17 +70,17 @@ export const contactRouter = createRouter({
       const limit = input?.limit || 100;
       const offset = input?.offset || 0;
 
-      // Build queries conditionally to avoid where(undefined)
-      let itemsQuery = db.select().from(contacts).orderBy(orderBy).limit(limit).offset(offset);
+      // Build queries — where() must come BEFORE orderBy/limit/offset
+      let itemsQuery = db.select().from(contacts);
       let countQuery = db.select({ count: count() }).from(contacts);
       
       if (whereClause) {
-        itemsQuery = itemsQuery.where(whereClause) as typeof itemsQuery;
-        countQuery = countQuery.where(whereClause) as typeof countQuery;
+        itemsQuery = itemsQuery.where(whereClause);
+        countQuery = countQuery.where(whereClause);
       }
 
       const [items, totalResult] = await Promise.all([
-        itemsQuery,
+        itemsQuery.orderBy(orderBy).limit(limit).offset(offset),
         countQuery,
       ]);
 
