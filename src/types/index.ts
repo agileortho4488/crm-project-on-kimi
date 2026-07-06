@@ -86,7 +86,7 @@ export interface Product {
   createdAt: Date;
 }
 
-export type AppPage = 'dashboard' | 'contacts' | 'leads' | 'activities' | 'tasks' | 'products' | 'imports' | 'dataquality' | 'enrichmenthub' | 'onlineenrichment' | 'scraping' | 'campaigns' | 'analytics' | 'maps' | 'adminpanel';
+export type AppPage = 'dashboard' | 'contacts' | 'leads' | 'activities' | 'tasks' | 'products' | 'imports' | 'dataquality' | 'enrichmenthub' | 'onlineenrichment' | 'autoenrichment' | 'scraping' | 'campaigns' | 'analytics' | 'maps' | 'adminpanel';
 
 export const districts = [
   'Adilabad', 'Bhadradri Kothagudem', 'Hyderabad', 'Jagtial', 'Jangaon',

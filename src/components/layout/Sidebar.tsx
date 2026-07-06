@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Target, CalendarDays, ClipboardList, Package, BarChart3, Upload, Stethoscope, ChevronLeft, ChevronRight, Megaphone, Sparkles, Wand2, Shield, MapPin, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, Target, CalendarDays, ClipboardList, Package, BarChart3, Upload, Stethoscope, ChevronLeft, ChevronRight, Megaphone, Sparkles, Wand2, Shield, MapPin, Globe, Bot } from 'lucide-react';
 import type { AppPage } from '@/types';
 
 interface SidebarProps {
@@ -18,6 +18,7 @@ const navItems: { id: AppPage; label: string; icon: React.ElementType }[] = [
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'imports', label: 'Data Imports', icon: Upload },
+  { id: 'autoenrichment', label: 'Auto Enrich', icon: Bot },
   { id: 'dataquality', label: 'Data Quality', icon: Sparkles },
   { id: 'enrichmenthub', label: 'Enrichment Hub', icon: Wand2 },
   { id: 'onlineenrichment', label: 'Online Enrich', icon: Globe },

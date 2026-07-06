@@ -12,6 +12,7 @@ import { campaignRouter } from "./routers/campaign";
 import { smartEnrichmentRouter } from "./routers/smart-enrichment";
 import { authRouter } from "./routers/auth";
 import { onlineEnrichmentRouter } from "./routers/online-enrichment";
+import { autoEnrichmentRouter } from "./routers/auto-enrichment";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -30,6 +31,7 @@ export const appRouter = createRouter({
   smartEnrichment: smartEnrichmentRouter,
   auth: authRouter,
   onlineEnrichment: onlineEnrichmentRouter,
+  autoEnrichment: autoEnrichmentRouter,
 });
 
 export type AppRouter = typeof appRouter;
