@@ -11,6 +11,7 @@ import { dashboardRouter } from "./routers/dashboard";
 import { campaignRouter } from "./routers/campaign";
 import { smartEnrichmentRouter } from "./routers/smart-enrichment";
 import { authRouter } from "./routers/auth";
+import { onlineEnrichmentRouter } from "./routers/online-enrichment";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -28,6 +29,7 @@ export const appRouter = createRouter({
   campaign: campaignRouter,
   smartEnrichment: smartEnrichmentRouter,
   auth: authRouter,
+  onlineEnrichment: onlineEnrichmentRouter,
 });
 
 export type AppRouter = typeof appRouter;

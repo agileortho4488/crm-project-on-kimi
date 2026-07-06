@@ -14,6 +14,7 @@ import { Analytics } from '@/pages/Analytics';
 import { DataQuality } from '@/pages/DataQuality';
 import { EnrichmentHub } from '@/pages/EnrichmentHub';
 import { MapDashboard } from '@/pages/MapDashboard';
+import { OnlineEnrichmentHub } from '@/pages/OnlineEnrichmentHub';
 import { Login } from '@/pages/Login';
 import { AdminPanel } from '@/pages/AdminPanel';
 import type { AppPage } from '@/types';
@@ -83,6 +84,7 @@ export default function App() {
       case 'dataquality': return <DataQuality />;
       case 'enrichmenthub': return <EnrichmentHub />;
       case 'maps': return <MapDashboard />;
+      case 'onlineenrichment': return <OnlineEnrichmentHub />;
       case 'scraping': return <Scraping />;
       case 'campaigns': return <Campaigns />;
       case 'analytics': return <Analytics />;

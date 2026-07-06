@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Phone, Mail, MapPin, Stethoscope, Building2, User, 
   Star, Calendar, ArrowUpRight, X, Edit2, Save, MessageCircle,
-  Navigation, FileText, Clock
+  Navigation, FileText, Clock, Search, ExternalLink
 } from 'lucide-react';
 
 interface Props {
@@ -120,23 +120,63 @@ export function ContactDetailDrawer({ contactId, open, onClose }: Props) {
             {/* Quick Actions */}
             <div className="px-6 pb-4">
               <div className="grid grid-cols-4 gap-2">
-                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1">
+                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1" onClick={() => contact.phone && window.open(`tel:${contact.phone}`)}>
                   <Phone className="w-4 h-4" />
                   <span className="text-[10px]">Call</span>
                 </Button>
-                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1">
+                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1" onClick={() => contact.phone && window.open(`https://wa.me/91${contact.phone.replace(/\D/g, '').slice(-10)}`, '_blank')}>
                   <MessageCircle className="w-4 h-4" />
                   <span className="text-[10px]">WhatsApp</span>
                 </Button>
-                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1">
+                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1" onClick={() => window.open(`https://www.google.com/maps/search/${encodeURIComponent(contact.name + ' doctor ' + (contact.district || ''))}`, '_blank')}>
                   <Navigation className="w-4 h-4" />
                   <span className="text-[10px]">Map</span>
                 </Button>
-                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1">
+                <Button size="sm" variant="outline" className="border-white/10 bg-white/5 hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/30 text-zinc-300 flex flex-col h-auto py-2 gap-1" onClick={() => contact.email && window.open(`mailto:${contact.email}`)}>
                   <Mail className="w-4 h-4" />
                   <span className="text-[10px]">Email</span>
                 </Button>
               </div>
+            </div>
+
+            {/* Online Enrichment - Search Links */}
+            <div className="px-6 pb-4">
+              <h3 className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Search className="w-3 h-3" /> Find Online (Click to Search)
+              </h3>
+              <div className="grid grid-cols-3 gap-1.5">
+                <EnrichButton 
+                  label="Practo" 
+                  color="#0ea5e9"
+                  onClick={() => window.open(`https://www.practo.com/search/doctors?results_type=doctor&q=${encodeURIComponent(contact.name + ' ' + (contact.specialty || ''))}&city=${encodeURIComponent(contact.district || 'India')}`, '_blank')}
+                />
+                <EnrichButton 
+                  label="Google" 
+                  color="#ef4444"
+                  onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(contact.name + ' doctor ' + (contact.specialty || '') + ' ' + (contact.district || '') + ' hospital')}`, '_blank')}
+                />
+                <EnrichButton 
+                  label="Justdial" 
+                  color="#f97316"
+                  onClick={() => window.open(`https://www.justdial.com/${encodeURIComponent(contact.district || 'Hyderabad')}/search?q=${encodeURIComponent(contact.name + ' ' + (contact.specialty || 'doctor'))}`, '_blank')}
+                />
+                <EnrichButton 
+                  label="Lybrate" 
+                  color="#8b5cf6"
+                  onClick={() => window.open(`https://www.lybrate.com/search?q=${encodeURIComponent(contact.name)}&city=${encodeURIComponent(contact.district || '')}&search_type=doctor`, '_blank')}
+                />
+                <EnrichButton 
+                  label="Apollo" 
+                  color="#06b6d4"
+                  onClick={() => window.open(`https://www.apollohospitals.com/doctors/?search=${encodeURIComponent(contact.name + ' ' + (contact.specialty || ''))}`, '_blank')}
+                />
+                <EnrichButton 
+                  label="G-Maps" 
+                  color="#10b981"
+                  onClick={() => window.open(`https://www.google.com/maps/search/${encodeURIComponent(contact.name + ' doctor clinic ' + (contact.district || ''))}`, '_blank')}
+                />
+              </div>
+              <p className="text-[9px] text-zinc-600 mt-1.5">Click any button to search for this doctor's workplace, fees, and timings</p>
             </div>
 
             <Separator className="bg-white/5" />
@@ -244,6 +284,19 @@ export function ContactDetailDrawer({ contactId, open, onClose }: Props) {
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function EnrichButton({ label, color, onClick }: { label: string; color: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium transition-all hover:opacity-80"
+      style={{ backgroundColor: color + '15', color: color, border: `1px solid ${color}30` }}
+    >
+      <ExternalLink className="w-2.5 h-2.5" />
+      {label}
+    </button>
   );
 }
 
