@@ -19,7 +19,7 @@ export const contactRouter = createRouter({
         status: z.string().optional(),
         qualityMin: z.number().min(0).max(100).optional(),
         qualityMax: z.number().min(0).max(100).optional(),
-        sortBy: z.enum(["name", "phone", "specialty", "hospital", "district", "division", "qualityScore", "status", "createdAt"]).optional(),
+        sortBy: z.enum(["id", "name", "phone", "specialty", "hospital", "district", "division", "qualityScore", "status", "createdAt"]).optional(),
         sortOrder: z.enum(["asc", "desc"]).optional(),
         limit: z.number().min(1).max(500).default(100),
         offset: z.number().min(0).default(0),
@@ -65,6 +65,7 @@ export const contactRouter = createRouter({
         : sortColumn === "qualityScore" ? sortDir(contacts.qualityScore)
         : sortColumn === "status" ? sortDir(contacts.status)
         : sortColumn === "createdAt" ? sortDir(contacts.createdAt)
+        : sortColumn === "id" ? sortDir(contacts.id)
         : sortDir(contacts.id); // default: id desc (fastest, indexed)
 
       const limit = input?.limit || 100;

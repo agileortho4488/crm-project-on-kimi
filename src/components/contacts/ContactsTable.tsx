@@ -65,14 +65,14 @@ const COLUMN_DEFS = [
 ];
 
 export function ContactsTable({ filters, selectedIds, onSelect, onSelectAll, onClearSelection, onOpenDetail, onRefresh }: Props) {
-  const [sort, setSort] = useState<SortConfig>({ column: 'updatedAt', direction: 'desc' });
+  const [sort, setSort] = useState<SortConfig>({ column: 'id', direction: 'desc' });
   const [offset, setOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const limit = 100;
 
   // Fetch data
-  const { data, isLoading, isFetching } = trpc.contact.list.useQuery({
+  const { data, isLoading, isFetching, error } = trpc.contact.list.useQuery({
     search: filters.search || undefined,
     division: filters.division || undefined,
     district: filters.district || undefined,
@@ -164,8 +164,21 @@ export function ContactsTable({ filters, selectedIds, onSelect, onSelectAll, onC
           </div>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 max-w-md text-center">
+              <p className="text-red-400 text-sm font-medium mb-1">Error loading contacts</p>
+              <p className="text-red-300/60 text-xs mb-3">{error.message}</p>
+              <Button size="sm" variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={onRefresh}>
+                <RefreshCw className="w-3 h-3 mr-1" /> Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Loading state */}
-        {isLoading && items.length === 0 && (
+        {isLoading && !error && items.length === 0 && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
             <span className="ml-2 text-sm text-zinc-500">Loading contacts...</span>
@@ -173,7 +186,7 @@ export function ContactsTable({ filters, selectedIds, onSelect, onSelectAll, onC
         )}
 
         {/* Empty state */}
-        {!isLoading && items.length === 0 && (
+        {!isLoading && !error && items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <svg className="w-8 h-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
