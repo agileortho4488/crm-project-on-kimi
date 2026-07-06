@@ -39,9 +39,13 @@ function getQualityColor(score: number): string {
   return '#ef4444';
 }
 
-function maskPhone(phone: string | null): string {
-  if (!phone || phone.length < 8) return phone || '—';
-  return phone.slice(0, 3) + '****' + phone.slice(-2);
+function formatPhone(phone: string | null): string {
+  if (!phone) return '—';
+  // Show full phone, just clean it up
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 10) return clean;
+  if (clean.length > 10) return clean.slice(-10);
+  return phone;
 }
 
 function getInitials(name: string): string {
@@ -251,7 +255,7 @@ export function ContactsTable({ filters, selectedIds, onSelect, onSelectAll, onC
 
               {/* Phone */}
               <div className="flex items-center px-3 py-2">
-                <span className="text-[12px] text-zinc-400 font-mono">{maskPhone(contact.phone)}</span>
+                <span className="text-[12px] text-zinc-400 font-mono">{formatPhone(contact.phone)}</span>
               </div>
 
               {/* Specialty */}

@@ -39,9 +39,12 @@ function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function maskPhone(phone: string | null): string {
-  if (!phone || phone.length < 8) return phone || '—';
-  return phone.slice(0, 4) + '****' + phone.slice(-3);
+function formatPhone(phone: string | null): string {
+  if (!phone) return '—';
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 10) return clean;
+  if (clean.length > 10) return clean.slice(-10);
+  return phone;
 }
 
 export function ContactDetailDrawer({ contactId, open, onClose }: Props) {
@@ -186,7 +189,7 @@ export function ContactDetailDrawer({ contactId, open, onClose }: Props) {
             <div className="p-6">
               <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Contact Information</h3>
               <div className="space-y-3">
-                <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone" value={maskPhone(contact.phone)} />
+                <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone" value={formatPhone(contact.phone)} />
                 <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone 2" value={contact.phone2 || '—'} />
                 <InfoRow icon={<MessageCircle className="w-4 h-4" />} label="WhatsApp" value={contact.whatsapp || '—'} />
                 <InfoRow icon={<Mail className="w-4 h-4" />} label="Email" value={contact.email || '—'} />
