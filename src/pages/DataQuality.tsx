@@ -32,6 +32,15 @@ export function DataQuality() {
   const enrichMutation = trpc.enrichment.enrichAll.useMutation({
     onSuccess: () => { setLastEnriched(new Date()); refetch(); },
   });
+  
+  // New batch enrich for division/type/specialty
+  const batchEnrichMutation = trpc.contact.batchEnrich.useMutation({
+    onSuccess: (data) => { setLastEnriched(new Date()); refetch(); alert(`Enriched ${data.updated} contacts! Division: ${data.breakdown.division}, Type: ${data.breakdown.type}, Specialty: ${data.breakdown.specialty}, Quality: ${data.breakdown.quality}`); },
+  });
+  
+  const { data: enrichProgress } = trpc.contact.enrichmentStats.useQuery(undefined, {
+    refetchInterval: 15000,
+  });
 
   const qualityPercentage = stats?.total ? Math.round((stats.highQuality / stats.total) * 100) : 0;
 
@@ -51,6 +60,15 @@ export function DataQuality() {
           <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
             <Sparkles className="w-3 h-3 mr-1" /> Auto-Enrichment Active
           </Badge>
+          <Button
+            onClick={() => { batchEnrichMutation.mutate({ limit: 5000, classifyDivision: true, classifyType: true, inferSpecialty: true, recalculateQuality: true }); }}
+            disabled={batchEnrichMutation.isPending}
+            size="sm"
+            className="bg-amber-500 text-black hover:bg-amber-400 mr-2"
+          >
+            {batchEnrichMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+            {batchEnrichMutation.isPending ? 'Enriching...' : 'Batch Enrich All'}
+          </Button>
           <Button
             onClick={() => { enrichMutation.mutate(); refetch(); }}
             disabled={enrichMutation.isPending}

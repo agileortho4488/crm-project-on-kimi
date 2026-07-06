@@ -4,10 +4,159 @@ import { getDb } from "../queries/connection";
 import { contacts, activities } from "@db/schema";
 import { eq, like, or, and, desc, asc, sql, count, gte, lte, isNotNull } from "drizzle-orm";
 
+// ==========================================
+// CLASSIFICATION ENGINE
+// ==========================================
+
+const DIVISION_KEYWORDS: Record<string, { specialties: string[]; hospitals: string[]; namePatterns: string[] }> = {
+  gynecology: {
+    specialties: ["obg", "obstetric", "gynecolog", "gynaecolog", "maternity", "women", "delivery", "pregnancy", "infertility", "ivf"],
+    hospitals: ["maternity", "women", "mother", "baby", "obg", "gynic"],
+    namePatterns: ["devi", "lakshmi", "parvati", "saraswati", "kaur", "begum", "amma", "latha", "sujatha", "vijaya", "shakuntala", "sumathi", "baby", "kumari"],
+  },
+  trauma_fracture: {
+    specialties: ["orthopedic", "orthopaedic", "trauma", "fracture", "sports medicine", "bone", "joint", "arthritis", "plating", "nailing"],
+    hospitals: ["ortho", "trauma", "accident", "emergency", "bone", "fracture"],
+    namePatterns: [],
+  },
+  cardiovascular: {
+    specialties: ["cardiolog", "cardiothoracic", "ctvs", "cardiac", "heart", "angioplasty", "stent", "bypass", "cabg", "valve"],
+    hospitals: ["heart", "cardiac", "cath lab", "cvts", "cardiolog"],
+    namePatterns: ["heart", "cardiac", "hruday", "dil"],
+  },
+  neuro_spine: {
+    specialties: ["neurosurgery", "neurosurgeon", "neurologist", "spine", "brain", "cranial", "cranio", "epilepsy", "stroke"],
+    hospitals: ["neuro", "brain", "spine", "neurolog"],
+    namePatterns: ["brain", "neuro", "nerve", "spine", "skull"],
+  },
+  endo_surgery: {
+    specialties: ["laparoscopic", "laparoscopy", "gi surgery", "gastro surgeon", "minimal access", "mias", "endoscop", "hernia", "appendectomy"],
+    hospitals: ["laparoscopy", "endoscopy", "gi", "gastro"],
+    namePatterns: ["lapro", "minimal", "keyhole", "endo"],
+  },
+  diagnostics: {
+    specialties: ["pathology", "radiology", "diagnostic", "lab", "microbiology", "biochemistry", "imaging", "xray", "x-ray", "ct scan", "mri", "ultrasound"],
+    hospitals: ["diagnostic", "path lab", "imaging", "radiology", "scan centre", "lab"],
+    namePatterns: [],
+  },
+  consumables: {
+    specialties: ["general surgeon", "general surgery", "nurse", "ot technician", "anesthesia", "critical care", "icu", "emergency medicine"],
+    hospitals: ["surgical", "multi specialty", "multispecialty", "general hospital"],
+    namePatterns: [],
+  },
+};
+
+function classifyDivision(contact: any): string {
+  const text = `${contact.specialty || ''} ${contact.hospital || ''} ${contact.name || ''} ${contact.designation || ''}`.toLowerCase();
+  
+  const scores: Record<string, number> = {};
+  
+  for (const [division, keywords] of Object.entries(DIVISION_KEYWORDS)) {
+    scores[division] = 0;
+    for (const kw of keywords.specialties) {
+      if (text.includes(kw)) scores[division] += 3;
+    }
+    for (const kw of keywords.hospitals) {
+      if (text.includes(kw)) scores[division] += 2;
+    }
+    for (const kw of keywords.namePatterns) {
+      if (text.includes(kw)) scores[division] += 2;
+    }
+  }
+  
+  let bestDivision = "unknown";
+  let bestScore = 0;
+  for (const [div, score] of Object.entries(scores)) {
+    if (score > bestScore) {
+      bestScore = score;
+      bestDivision = div;
+    }
+  }
+  
+  return bestScore >= 2 ? bestDivision : "unknown";
+}
+
+function classifyType(contact: any): string {
+  const text = `${contact.name || ''} ${contact.hospital || ''} ${contact.specialty || ''}`.toLowerCase();
+  
+  // Hospital patterns
+  if (text.includes('hospital') || text.includes('medical college') || text.includes('institute') || text.includes('medical centre') || text.includes('health centre')) {
+    if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) return 'hospital';
+  }
+  // Clinic patterns
+  if (text.includes('clinic') || text.includes('nursing home') || text.includes('health center') || text.includes('care centre') || text.includes('diagnostic centre')) {
+    if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) return 'clinic';
+  }
+  // Distributor patterns
+  if (text.includes('distributor') || text.includes('supplier') || text.includes('dealer') || text.includes('traders') || text.includes('traders')) {
+    return 'distributor';
+  }
+  // Corporate patterns
+  if (text.includes('pvt ltd') || text.includes('private limited') || text.includes(' ltd') || text.includes('limited') || text.includes('corporation') || text.includes('company') || text.includes('healthcare') || text.includes('pharma') || text.includes('surgical') || text.includes('surgicals') || text.includes('medicals')) {
+    if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) return 'corporate';
+  }
+  
+  return contact.type || 'doctor';
+}
+
+function inferSpecialty(contact: any): string | null {
+  const text = `${contact.name || ''} ${contact.hospital || ''} ${contact.designation || ''}`.toLowerCase();
+  
+  const mappings: [string[], string][] = [
+    [["obg", "obstetric", "gynecolog", "gynaecolog", "maternity", "women care", "delivery"], "Obstetrics & Gynecology"],
+    [["orthopedic", "orthopaedic", "trauma", "fracture", "bone", "joint replacement", "arthroplasty"], "Orthopedic Surgery"],
+    [["cardiolog", "cardiothoracic", "cardiac", "heart", "ctvs"], "Cardiology"],
+    [["neurosurgery", "neurosurgeon", "brain surgeon"], "Neurosurgery"],
+    [["neurologist", "neurology", "epilepsy", "stroke"], "Neurology"],
+    [["laparoscop", "gi surgery", "gastro surgeon", "minimal access"], "General Surgery"],
+    [["pediatric", "paediatric", "child specialist", "children"], "Pediatrics"],
+    [["urologist", "urology", "kidney", "nephrolog"], "Urology"],
+    [["ent", "ear nose throat", "otorhinolaryngology"], "ENT"],
+    [["ophthalmolog", "eye specialist", "eye surgeon"], "Ophthalmology"],
+    [["dental", "dentist", "orthodontist"], "Dental Surgery"],
+    [["dermatolog", "skin specialist"], "Dermatology"],
+    [["pulmonolog", "chest", "lung", "tb", "respiratory"], "Pulmonology"],
+    [["onco", "cancer"], "Oncology"],
+    [["psychiatr", "psychologist", "mental health"], "Psychiatry"],
+    [["diagnostic", "radiology", "pathology", "imaging", "xray", "x-ray", "ct scan", "mri"], "Radiology & Diagnostics"],
+    [["anesthesia", "anaesthesia", "critical care", "icu"], "Anesthesiology & Critical Care"],
+    [["plastic surgery", "cosmetic surgery"], "Plastic Surgery"],
+    [["endocrinolog", "diabet"], "Endocrinology"],
+    [["gastroenterolog", "gi"], "Gastroenterology"],
+    [["nephrolog", "kidney", "dialysis"], "Nephrology"],
+    [["rheumatolog"], "Rheumatology"],
+    [["physiotherap", "physio", "rehab"], "Physiotherapy"],
+    [["homeo", "homeopath"], "Homeopathy"],
+    [["ayurveda", "ayurvedic"], "Ayurveda"],
+    [["general surgeon"], "General Surgery"],
+    [["general physician", "internal medicine", "medicine"], "General Medicine"],
+  ];
+  
+  for (const [keywords, specialty] of mappings) {
+    for (const kw of keywords) {
+      if (text.includes(kw)) return specialty;
+    }
+  }
+  
+  return null;
+}
+
+function calculateQuality(contact: any): number {
+  let score = 0;
+  if (contact.name?.length > 2) score += 20;
+  if (contact.phone?.length >= 10) score += 25;
+  if (contact.hospital?.length > 2) score += 15;
+  if (contact.district?.length > 1) score += 10;
+  if (contact.specialty?.length > 1) score += 10;
+  if (contact.email?.includes("@")) score += 10;
+  if (contact.division && contact.division !== "unknown") score += 5;
+  if (contact.designation?.length > 1) score += 5;
+  return score;
+}
+
 export const contactRouter = createRouter({
   // ==========================================
   // LIST CONTACTS — Full server-side filtering, sorting, pagination
-  // Optimized for 1M+ records with indexed queries
   // ==========================================
   list: publicQuery
     .input(
@@ -29,7 +178,6 @@ export const contactRouter = createRouter({
       const db = getDb();
       const conditions = [];
       
-      // Search across name, phone, hospital, specialty, district
       if (input?.search) {
         const s = `%${input.search}%`;
         conditions.push(or(
@@ -42,18 +190,12 @@ export const contactRouter = createRouter({
       }
       if (input?.type) conditions.push(eq(contacts.type, input.type as any));
       if (input?.division) conditions.push(eq(contacts.division, input.division));
-      if (input?.district) {
-        // Use LIKE for case-insensitive partial matching
-        conditions.push(like(contacts.district, `%${input.district}%`));
-      }
+      if (input?.district) conditions.push(like(contacts.district, `%${input.district}%`));
       if (input?.status) conditions.push(eq(contacts.status, input.status as any));
       if (input?.qualityMin !== undefined) conditions.push(gte(contacts.qualityScore, input.qualityMin));
       if (input?.qualityMax !== undefined) conditions.push(lte(contacts.qualityScore, input.qualityMax));
 
-      // Build where clause - only apply if conditions exist
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Build sort clause - default to id desc for performance (indexed)
       const sortColumn = input?.sortBy || "id";
       const sortDir = input?.sortOrder === "asc" ? asc : desc;
       const orderBy = sortColumn === "name" ? sortDir(contacts.name)
@@ -66,12 +208,11 @@ export const contactRouter = createRouter({
         : sortColumn === "status" ? sortDir(contacts.status)
         : sortColumn === "createdAt" ? sortDir(contacts.createdAt)
         : sortColumn === "id" ? sortDir(contacts.id)
-        : sortDir(contacts.id); // default: id desc (fastest, indexed)
+        : sortDir(contacts.id);
 
       const limit = input?.limit || 100;
       const offset = input?.offset || 0;
 
-      // Build queries — where() must come BEFORE orderBy/limit/offset
       let itemsQuery = db.select().from(contacts);
       let countQuery = db.select({ count: count() }).from(contacts);
       
@@ -200,53 +341,21 @@ export const contactRouter = createRouter({
       return { updated };
     }),
 
-  // Deduplication - find potential duplicates
-  findDuplicates: publicQuery
-    .input(z.object({ threshold: z.number().default(80) }).optional())
-    .query(async ({ input }) => {
-      const db = getDb();
-      const all = await db.select().from(contacts).limit(5000);
-      const duplicates = [];
-      
-      for (let i = 0; i < all.length; i++) {
-        for (let j = i + 1; j < all.length; j++) {
-          const a = all[i];
-          const b = all[j];
-          let score = 0;
-          
-          if (a.name && b.name) {
-            const aName = a.name.toLowerCase().replace(/[^a-z]/g, '');
-            const bName = b.name.toLowerCase().replace(/[^a-z]/g, '');
-            if (aName === bName) score += 50;
-            else if (aName.includes(bName) || bName.includes(aName)) score += 30;
-          }
-          
-          if (a.phone && b.phone && a.phone.replace(/\D/g,'') === b.phone.replace(/\D/g,'')) score += 30;
-          if (a.hospital && b.hospital && a.hospital.toLowerCase() === b.hospital.toLowerCase()) score += 10;
-          if (a.district && b.district && a.district === b.district) score += 10;
-          
-          if (score >= (input?.threshold || 80)) {
-            duplicates.push({ contactA: a, contactB: b, score });
-          }
-        }
-      }
-      
-      return duplicates;
-    }),
-
   // Stats
   stats: publicQuery.query(async () => {
     const db = getDb();
-    const [total, doctors, hospitals, clinics, distributors, districts, active, withDivision, avgQuality] = await Promise.all([
+    const [total, doctors, hospitals, clinics, distributors, corporate, districts, active, withDivision, avgQuality, highQuality] = await Promise.all([
       db.select({ count: count() }).from(contacts),
       db.select({ count: count() }).from(contacts).where(eq(contacts.type, "doctor")),
       db.select({ count: count() }).from(contacts).where(eq(contacts.type, "hospital")),
       db.select({ count: count() }).from(contacts).where(eq(contacts.type, "clinic")),
       db.select({ count: count() }).from(contacts).where(eq(contacts.type, "distributor")),
+      db.select({ count: count() }).from(contacts).where(eq(contacts.type, "corporate")),
       db.select({ count: sql`DISTINCT district` }).from(contacts),
       db.select({ count: count() }).from(contacts).where(eq(contacts.status, "active")),
-      db.select({ count: count() }).from(contacts).where(isNotNull(contacts.division)),
+      db.select({ count: count() }).from(contacts).where(and(isNotNull(contacts.division), sql`${contacts.division} != 'unknown'`)),
       db.select({ avg: sql`AVG(quality_score)` }).from(contacts),
+      db.select({ count: count() }).from(contacts).where(gte(contacts.qualityScore, 70)),
     ]);
     
     return {
@@ -255,41 +364,33 @@ export const contactRouter = createRouter({
       hospitals: hospitals[0].count,
       clinics: clinics[0].count,
       distributors: distributors[0].count,
+      corporate: corporate[0].count,
       districts: districts[0].count,
       active: active[0].count,
       withDivision: withDivision[0].count,
       avgQuality: Math.round(Number(avgQuality[0].avg) || 0),
+      highQuality: highQuality[0].count,
     };
   }),
 
-  // ==========================================
-  // FILTER OPTIONS — Get unique values for filter dropdowns
-  // ==========================================
+  // Filter options
   filterOptions: publicQuery.query(async () => {
     const db = getDb();
     
     const [divisions, districts, specialties, statuses] = await Promise.all([
       db.select({ division: contacts.division, count: count() }).from(contacts).groupBy(contacts.division).orderBy(desc(count())),
-      // Get top 100 districts by count, normalize to proper case
       db.select({ district: contacts.district, count: count() }).from(contacts).where(isNotNull(contacts.district)).groupBy(contacts.district).orderBy(desc(count())).limit(100),
       db.select({ specialty: contacts.specialty, count: count() }).from(contacts).where(isNotNull(contacts.specialty)).groupBy(contacts.specialty).orderBy(desc(count())).limit(100),
       db.select({ status: contacts.status, count: count() }).from(contacts).groupBy(contacts.status),
     ]);
 
-    // Merge districts with same name but different case (e.g., "Hyderabad" and "hyderabad")
     const districtMap = new Map<string, number>();
     for (const d of districts) {
       const key = (d.district || 'Unknown').toLowerCase().trim();
       const existing = districtMap.get(key);
-      if (existing) {
-        districtMap.set(key, existing + d.count);
-      } else {
-        // Store first occurrence's casing as the canonical form
-        districtMap.set(key, d.count);
-      }
+      districtMap.set(key, (existing || 0) + d.count);
     }
 
-    // Convert back to array with proper title case
     const mergedDistricts = Array.from(districtMap.entries())
       .map(([key, count]) => ({
         value: key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
@@ -305,10 +406,7 @@ export const contactRouter = createRouter({
     };
   }),
 
-  // ==========================================
-  // GEO AGGREGATION — For map dashboard
-  // Groups contacts by district with counts
-  // ==========================================
+  // Geo aggregation
   geoAggregation: publicQuery
     .input(
       z.object({
@@ -344,58 +442,116 @@ export const contactRouter = createRouter({
     }),
 
   // ==========================================
-  // AUTO-CLASSIFY TYPES — Fix data quality
-  // Updates contact type based on name/hospital patterns
+  // BATCH ENRICH — Auto-classify all contacts
   // ==========================================
-  autoClassifyTypes: publicQuery
-    .input(z.object({ limit: z.number().default(10000) }).optional())
+  batchEnrich: publicQuery
+    .input(z.object({
+      limit: z.number().min(1).max(50000).default(5000),
+      classifyDivision: z.boolean().default(true),
+      classifyType: z.boolean().default(true),
+      inferSpecialty: z.boolean().default(true),
+      recalculateQuality: z.boolean().default(true),
+    }).optional())
     .mutation(async ({ input }) => {
       const db = getDb();
-      const limit = input?.limit || 10000;
+      const limit = input?.limit || 5000;
       
-      // Get contacts with type="doctor" that should be something else
-      const candidates = await db.select()
+      // Get contacts that need enrichment
+      const unenriched = await db.select()
         .from(contacts)
-        .where(eq(contacts.type, "doctor"))
+        .where(
+          or(
+            sql`${contacts.division} IS NULL`,
+            eq(contacts.division, "unknown"),
+            eq(contacts.division, ""),
+            sql`${contacts.specialty} IS NULL`,
+            eq(contacts.specialty, ""),
+            eq(contacts.qualityScore, 0),
+            eq(contacts.qualityScore, 55),
+          )
+        )
         .limit(limit);
 
       let updated = 0;
-      const classifications: Record<string, number> = {};
+      const breakdown = {
+        division: 0,
+        type: 0,
+        specialty: 0,
+        quality: 0,
+      };
 
-      for (const contact of candidates) {
-        const text = `${contact.name || ''} ${contact.hospital || ''} ${contact.specialty || ''}`.toLowerCase();
-        let newType: string | null = null;
+      for (const contact of unenriched) {
+        const updates: any = {};
 
-        // Hospital patterns
-        if (text.includes('hospital') || text.includes('medical college') || text.includes('institute')) {
-          if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) {
-            newType = 'hospital';
-          }
-        }
-        // Clinic patterns
-        else if (text.includes('clinic') || text.includes('nursing home') || text.includes('health center')) {
-          if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) {
-            newType = 'clinic';
-          }
-        }
-        // Distributor patterns
-        else if (text.includes('distributor') || text.includes('supplier') || text.includes('dealer') || text.includes('traders')) {
-          newType = 'distributor';
-        }
-        // Corporate patterns
-        else if (text.includes('pvt ltd') || text.includes('private limited') || text.includes(' ltd') || text.includes('limited') || text.includes('corporation') || text.includes('inc') || text.includes('company') || text.includes('healthcare') || text.includes('pharma') || text.includes('surgical')) {
-          if (!text.includes('dr ') && !text.includes('dr.') && !text.includes('doctor')) {
-            newType = 'corporate';
+        // Classify division
+        if (input?.classifyDivision !== false && (!contact.division || contact.division === "unknown" || contact.division === "")) {
+          const division = classifyDivision(contact);
+          if (division !== "unknown") {
+            updates.division = division;
+            breakdown.division++;
           }
         }
 
-        if (newType) {
-          await db.update(contacts).set({ type: newType as any }).where(eq(contacts.id, contact.id));
+        // Classify type (doctor/hospital/clinic/distributor/corporate)
+        if (input?.classifyType !== false) {
+          const newType = classifyType(contact);
+          if (newType !== contact.type) {
+            updates.type = newType;
+            breakdown.type++;
+          }
+        }
+
+        // Infer specialty from name/hospital
+        if (input?.inferSpecialty !== false && (!contact.specialty || contact.specialty === "")) {
+          const specialty = inferSpecialty(contact);
+          if (specialty) {
+            updates.specialty = specialty;
+            breakdown.specialty++;
+          }
+        }
+
+        // Recalculate quality score
+        if (input?.recalculateQuality !== false) {
+          const quality = calculateQuality({ ...contact, ...updates });
+          if (quality !== contact.qualityScore) {
+            updates.qualityScore = quality;
+            breakdown.quality++;
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await db.update(contacts).set(updates).where(eq(contacts.id, contact.id));
           updated++;
-          classifications[newType] = (classifications[newType] || 0) + 1;
         }
       }
 
-      return { updated, classifications, checked: candidates.length };
+      return {
+        processed: unenriched.length,
+        updated,
+        breakdown,
+      };
     }),
+
+  // Get enrichment progress stats
+  enrichmentStats: publicQuery.query(async () => {
+    const db = getDb();
+    
+    const [total, withDivision, withSpecialty, withType, avgQuality, byDivision] = await Promise.all([
+      db.select({ count: count() }).from(contacts),
+      db.select({ count: count() }).from(contacts).where(and(isNotNull(contacts.division), sql`${contacts.division} != 'unknown'`, sql`${contacts.division} != ''`)),
+      db.select({ count: count() }).from(contacts).where(and(isNotNull(contacts.specialty), sql`${contacts.specialty} != ''`)),
+      db.select({ count: count() }).from(contacts).where(eq(contacts.type, "doctor")),
+      db.select({ avg: sql`AVG(quality_score)` }).from(contacts),
+      db.select({ division: contacts.division, count: count() }).from(contacts).groupBy(contacts.division).orderBy(desc(count())),
+    ]);
+
+    return {
+      total: total[0].count,
+      withDivision: withDivision[0].count,
+      withSpecialty: withSpecialty[0].count,
+      doctorTypes: withType[0].count,
+      avgQuality: Math.round(Number(avgQuality[0].avg) || 0),
+      byDivision: byDivision.map(d => ({ division: d.division || "unknown", count: d.count })),
+    };
+  }),
 });
